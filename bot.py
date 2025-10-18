@@ -1,9 +1,12 @@
 import os
 import subprocess
+import re
+import glob
+import shutil
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
-import re
+from tqdm import tqdm
 
 # Load environment variables
 load_dotenv()
@@ -14,7 +17,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "downloads")
 LOG_DIR = os.getenv("LOG_DIR", "logs")
 
-# Create directories
+# Create directories if not exist
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -43,7 +46,7 @@ def sanitize_filename(name: str) -> str:
 async def download_anime(_, message: Message):
     link = message.text.strip()
 
-    # Extract anime name and episode number (basic method)
+    # Extract anime name and episode number (basic)
     parts = link.rstrip("/").split("/")
     anime_name = sanitize_filename(parts[-2].replace("-", "_"))
     episode_num = sanitize_filename(parts[-1].replace("-", "_"))
@@ -51,29 +54,40 @@ async def download_anime(_, message: Message):
     await message.reply_text(f"🎬 Starting download for:\n{anime_name} Episode {episode_num}")
 
     for q in [360, 720, 1080]:
-        filename = f"{anime_name}_ep{episode_num}_{q}p.mp4"
         msg = await message.reply_text(f"⬇️ Downloading {q}p ... 0%")
+        last_sent_percent = -1
+        pbar = tqdm(total=100, desc=f"{q}p Download Progress", ncols=80, leave=False)
 
         # Stream download progress
-        last_percent = ""
         for line in run_cli_stream(link, q):
             if "%" in line:
                 try:
-                    percent = [s for s in line.split() if "%" in s][0]
-                    if percent != last_percent:
-                        last_percent = percent
-                        await msg.edit_text(f"⬇️ Downloading {q}p ... {percent}")
+                    percent = int(re.search(r"(\d+)%", line).group(1))
+                    pbar.update(percent - pbar.n)
+                    # Update Telegram message only every 10%
+                    if percent - last_sent_percent >= 10:
+                        last_sent_percent = percent
+                        await msg.edit_text(f"⬇️ Downloading {q}p ... {percent}%")
                 except:
                     pass
 
+        pbar.close()
         await msg.edit_text(f"✅ {q}p download complete! Uploading to Telegram ...")
 
-        # Upload the file
-        file_path = os.path.join(DOWNLOAD_DIR, filename)
-        if os.path.exists(file_path):
-            await message.reply_document(file_path)
-        else:
-            await message.reply_text(f"❌ File {filename} not found after download.")
+        # Detect the most recently downloaded file
+        files = glob.glob(os.path.join(DOWNLOAD_DIR, "*.mp4"))
+        if not files:
+            await message.reply_text(f"❌ No mp4 file found for quality {q}p")
+            continue
+
+        latest_file = max(files, key=os.path.getmtime)  # newest file
+        target_file = os.path.join(DOWNLOAD_DIR, f"{anime_name}_ep{episode_num}_{q}p.mp4")
+
+        # Rename to standardized filename
+        shutil.move(latest_file, target_file)
+
+        # Upload to Telegram
+        await message.reply_document(target_file)
 
     await message.reply_text("✅ All downloads finished!")
 
