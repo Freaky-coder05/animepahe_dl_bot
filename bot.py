@@ -74,16 +74,17 @@ async def download_anime(_, message: Message):
         pbar.close()
         await msg.edit_text(f"✅ {q}p download complete! Uploading to Telegram ...")
 
-        # Detect the most recently downloaded file
-        files = glob.glob(os.path.join(DOWNLOAD_DIR, "*.mp4"))
+        # Detect the most recently downloaded file (any extension, any subfolder)
+        files = glob.glob(os.path.join(DOWNLOAD_DIR, "**/*.*"), recursive=True)
         if not files:
-            await message.reply_text(f"❌ No mp4 file found for quality {q}p")
+            await message.reply_text(f"❌ No downloaded file found for quality {q}p")
             continue
 
         latest_file = max(files, key=os.path.getmtime)  # newest file
-        target_file = os.path.join(DOWNLOAD_DIR, f"{anime_name}_ep{episode_num}_{q}p.mp4")
+        ext = os.path.splitext(latest_file)[1]
+        target_file = os.path.join(DOWNLOAD_DIR, f"{anime_name}_ep{episode_num}_{q}p{ext}")
 
-        # Rename to standardized filename
+        # Rename/move to standardized filename
         shutil.move(latest_file, target_file)
 
         # Upload to Telegram
