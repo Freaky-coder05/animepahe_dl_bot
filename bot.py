@@ -30,7 +30,7 @@ def sanitize_filename(name: str) -> str:
 
 def get_download_url(link: str, quality: int) -> str:
     """Use animepahe-cli to get the direct download URL."""
-    cmd = ["animepahe-cli", "-l", link, "-q", str(quality), "-x", "-f", "links.txt"]
+    cmd = ["animepahe-cli-beta", "-l", link, "-q", str(quality), "-x", "-f", "links.txt"]
     subprocess.run(cmd, cwd=DOWNLOAD_DIR, check=True)
     path = os.path.join(DOWNLOAD_DIR, "links.txt")
     with open(path, "r") as f:
