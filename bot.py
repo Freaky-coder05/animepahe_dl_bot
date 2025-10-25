@@ -30,7 +30,7 @@ def get_series_slug(series_url: str) -> str:
 
 def get_episode_link(series_slug: str, episode_number: int):
     """Fetch AnimePahe episode play URL via API."""
-    api = f"https://animepahe.ru/api?m=release&id={series_slug}&sort=episode_asc"
+    api = f"https://animepahe.si/api?m=release&id={series_slug}&sort=episode_asc"
     res = requests.get(api).json()
 
     if "data" not in res:
@@ -44,7 +44,7 @@ def get_episode_link(series_slug: str, episode_number: int):
     session = ep_data["session"]
     ep_num = ep_data["episode"]
 
-    return f"https://animepahe.ru/play/{series_slug}/{session}", ep_num
+    return f"https://animepahe.si/play/{series_slug}/{session}", ep_num
 
 
 @app.on_message(filters.private & filters.regex(r"https?://.*animepahe.*"))
